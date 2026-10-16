@@ -37,24 +37,32 @@ src/
 
 ## Status integrasi
 
-Login dan dashboard tersedia sebagai prototipe dengan data contoh. Tanpa VITE_API_BASE_URL, masukkan email valid atau NIP 18 digit dan kata sandi apa saja untuk masuk ke dashboard. Kredensial demo tidak dikirim ke layanan eksternal atau disimpan. Hanya peran dan penanda sesi demo disimpan dalam sessionStorage agar refresh tetap membuka dashboard. Tombol keluar menghapus sesi demo. Mode demo bukan autentikasi produksi.
+Login, pemulihan sesi melalui GET /me, logout melalui DELETE /logout, daftar unit kerja melalui GET /unit-kerjas, dan master satuan melalui GET /master-satuans sudah terhubung ke API backend. Identitas dan peran diambil dari akun server; JWT yang dikembalikan backend tidak disimpan oleh frontend. Autentikasi menggunakan cookie sesi HttpOnly.
 
-Dashboard menggunakan sidebar desktop 248px, topbar fixed 72px, empat kartu ringkasan, komposisi pagu, distribusi status, dan tabel berpaginasi. Pada tablet/mobile sidebar berubah menjadi drawer. Pencarian, filter status, tahun, notifikasi, detail usulan, ubah usulan, buat draf, dan ekspor CSV data contoh dapat dicoba. Sumber data: src/features/dashboard/demoData.js. Perubahan draf hanya bertahan selama dashboard terpasang dan direset setelah refresh/logout.
+### Menjalankan integrasi lokal
 
-Angka ringkasan dihitung dari data tabel: total pagu Rp 1.850.000.000, tervalidasi Rp 340.000.000, komitmen Rp 889.550.000, sisa Rp 620.450.000. Draf dan koreksi pada tahap Operator tidak mengikat pagu. Data contoh hanya tersedia untuk TA 2027; tahun lain menampilkan keadaan kosong. Peran selain Admin tidak melihat menu master administrasi. Pilihan peran demo hanya untuk pratinjau UI.
+1. Jalankan MySQL dan backend sesuai konfigurasi `.env` backend, lalu `npm install` dan `npm start` dari folder `Backend_Usul_Anggaran`. Backend harus mendengarkan port 5000.
+2. Dari folder frontend, salin `.env.example` menjadi `.env.local`. Gunakan `VITE_API_BASE_URL=/api`.
+3. Jalankan `npm install` dan `npm run dev`. Restart Vite jika konfigurasi env berubah.
+4. Login dengan email dan kata sandi akun yang sudah ada di database. Belum tersedia pendaftaran atau seed akun awal. Peran UI mengikuti peran backend: operator → OPERATOR, pimpinan_unit → PIMPINAN, tim_sakip → SAKIP, spi → SPI, kpa → KPA, superadmin → ADMIN.
+5. Buka menu **Daftar Unit Kerja** untuk melihat data database. Admin (superadmin pada backend) dapat menambah unit dan mengubah namanya melalui POST /unit-kerjas dan PATCH /unit-kerjas/:id. Kode unit dibuat otomatis dan tidak diubah. Daftar dimuat ulang setelah penyimpanan berhasil. Role lain hanya melihat daftar; backend tetap memverifikasi izin setiap perubahan. Form menampilkan kesalahan penyimpanan dan mencegah pengiriman ganda. Daftar mendukung pencarian, muat ulang, dan tampilan kosong/gagal.
+6. Refresh halaman untuk memeriksa pemulihan sesi; gunakan Keluar untuk mengakhiri sesi backend. Cookie backend berlaku hingga 24 jam.
 
-Backend, SSO, reset sandi, keputusan pemeriksa produksi, laporan resmi L01–L11, dan integrasi SAKTI belum tersedia. Master, pengajuan, koreksi, dan laporan contoh tersedia sebagai simulasi lokal. Tahun/periode adalah konten referensi statis. Logo institusi memakai aset pengguna `src/assets/POLINDRA.png`, melalui komponen bersama `InstitutionLogo`. Avatar masih berupa inisial contoh.
+Vite meneruskan `/api/*` ke `http://127.0.0.1:5000/*`, sehingga browser menggunakan origin frontend yang sama. Proxy ini hanya untuk development. Hosting produksi perlu reverse proxy `/api` atau URL API dan konfigurasi cookie/CORS yang sesuai.
 
-Adapter API opsional. Salin .env.example menjadi .env.local, isi VITE_API_BASE_URL, lalu mulai ulang Vite setelah kontrak backend dikonfirmasi:
+Admin juga dapat menghapus unit melalui tombol **Hapus**, dengan mengetik nama unit persis sebagai konfirmasi. DELETE /unit-kerjas/:id hanya menghapus unit yang belum dipakai; backend mengunci baris unit dan memeriksa operator, pengajuan, serta pagu dalam satu transaksi. Unit yang masih dipakai menghasilkan HTTP 409 dengan alasan, tanpa menghapus data terkait. Restart backend setelah memperbarui kode penghapusan. Tes backend: `npm test` dari folder `Backend_Usul_Anggaran`.
 
-- POST {VITE_API_BASE_URL}/login dengan JSON { identifier, password, role, remember_session }.
-- Peran: OPERATOR, PIMPINAN, SAKIP, SPI, KPA, ADMIN; server memverifikasi izin berdasarkan akun.
-- Adapter mengasumsikan sesi cookie HttpOnly (credentials: include), response 2xx untuk autentikasi berhasil, serta kode error HTTP standar. HTTPS, CORS, cookie, CSRF, dan batas sesi 8 jam ditetapkan backend.
-- Password/token tidak disimpan dalam localStorage/sessionStorage. Checkbox hanya mengirim preferensi sesi ke server.
-- Setelah response sukses, sandi dibersihkan dan halaman berpindah ke dashboard prototipe. Dashboard masih memakai data contoh; integrasi data dan identitas akun produksi belum diimplementasikan.
-- Font Inter dimuat dari Google Fonts, dengan fallback font sistem saat offline.
+Menu **Master Satuan** (`#/master-satuan`) mengambil data dari GET /master-satuans, mendukung pencarian dan muat ulang. Admin dapat menambah kode/nama melalui POST /master-satuans dan mengubah nama melalui PATCH /master-satuans/:code. Kode satuan tetap saat diubah. Backend memverifikasi Superadmin untuk perubahan, menolak kode duplikat dengan HTTP 409, data tidak valid dengan 400, dan satuan tidak ditemukan dengan 404. Setelah berhasil menyimpan, daftar dimuat ulang; kesalahan tetap tampil di formulir. Role lain hanya melihat daftar. Restart backend agar endpoint PATCH aktif. Referensi satuan pada formulir usulan demo belum menggunakan daftar ini.
 
-Klaim sinkronisasi SAKTI, sertifikasi ISO, dan TLS pada gambar tidak ditampilkan sebagai fakta. Sesuai design.md, keluaran awal untuk SAKTI berupa rekap untuk input manual.
+Tombol **Hapus** pada Master Satuan hanya tersedia untuk Admin. Dialog memperingatkan bahwa penghapusan permanen dan meminta nama satuan sebagai konfirmasi. DELETE /master-satuans/:code memverifikasi Superadmin serta memeriksa referensi rincian anggaran dalam transaksi dengan kunci baris. Satuan yang masih dipakai ditolak dengan HTTP 409; satuan kosong dapat dihapus. Restart backend agar endpoint DELETE aktif.
+
+Menu **Master Akun Anggaran** (`#/master-akun-anggaran`) membaca tabel `master_akun` melalui GET /master-akuns. Semua role dapat melihat dan mencari. Admin menambah kode 6 digit dan nama lewat POST /master-akuns, mengubah nama lewat PATCH /master-akuns/:id, serta menghapus lewat DELETE /master-akuns/:id. Kode tidak dapat diubah; kode duplikat ditolak dengan HTTP 409. Hapus memerlukan peringatan dan konfirmasi nama akun. Backend memeriksa referensi pada hierarki akun dan rincian anggaran dalam transaksi; akun yang masih dipakai ditolak dengan HTTP 409. Restart backend untuk mengaktifkan endpoint tambah dan perlindungan hapus. Katalog ini terpisah dari Master Hierarki Anggaran dan formulir usulan yang masih berupa simulasi.
+Menu **Daftar Pagu** (`#/pagu-iku`, menggantikan tampilan Pagu & IKU pada sesi backend) membaca saldo dari tabel `pagu`. Operator dan Pimpinan menggunakan GET /pagus/unit-kerja; role lintas unit menggunakan GET /pagus. GET /pagus dan GET /pagus/:id kini memerlukan login; backend membatasi Operator/Pimpinan ke unit akun, termasuk ketika meminta detail langsung. Akun unit tanpa unit kerja ditolak dengan 403. Daftar mendukung pencarian, filter unit/sumber dana, total saldo hasil filter, dan muat ulang. Nominal BIGINT dijumlahkan dengan BigInt agar presisi rupiah tetap terjaga. Tahap ini hanya membaca pagu; tambah, ubah, dan hapus pagu belum dihubungkan. Saldo tersimpan sudah dikurangi oleh pengajuan dan tidak dianggap sebagai alokasi awal. Database pagu belum memiliki tahun, sehingga pemilih tahun tidak memfilter halaman ini. Dashboard dan IKU tetap memakai simulasi. Restart backend agar pembatasan akses baca aktif.
+Jika backend tidak aktif, frontend menampilkan kesalahan koneksi dan tombol coba lagi. Untuk mencoba demo tanpa backend, kosongkan `VITE_API_BASE_URL` dan restart Vite. Dalam demo, gunakan email valid atau NIP 18 digit dan kata sandi apa saja; peran dan penanda demo disimpan di sessionStorage. Kredensial tidak disimpan.
+
+Usulan, perhitungan pagu dashboard, master selain unit kerja, satuan, dan katalog akun anggaran, pemeriksaan, pengguna, audit, dan laporan L01–L11 masih memakai simulasi lokal TA 2027. Perubahan modul simulasi direset setelah refresh/logout. Data unit backend ditampilkan terpisah dari referensi unit demo agar tidak mengubah perhitungan atau cakupan simulasi. SSO, reset sandi, dan integrasi SAKTI belum terhubung.
+
+Jalankan `npm run lint`, `npm test`, dan `npm run build` untuk validasi. Tes API menggunakan respons mock; pengujian nyata memerlukan backend, database, dan akun terdaftar.
 
 ## Modul dashboard
 
@@ -83,4 +91,3 @@ src/
 ├── pages/dashboard/   # DashboardPage dan CSS khusus
 └── utils/             # Format nominal/persentase dan ekspor CSV
 ```
-

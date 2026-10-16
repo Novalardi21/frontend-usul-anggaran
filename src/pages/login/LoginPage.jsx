@@ -5,6 +5,7 @@ import { AUTH_INFO } from '../../features/auth/constants'
 import Icon from '../../components/ui/Icon'
 import InfoDialog from '../../components/feedback/InfoDialog'
 import './login.css'
+import { apiBaseUrl } from '../../services/api'
 
 const features = [
   { icon: 'coin', title: 'Transparansi Pagu', description: 'Alokasi BOPTN & PNBP terdistribusi jelas dan akuntabel.' },
@@ -25,7 +26,7 @@ export default function LoginPage({ onLogin }) {
       <p className="institution-note">Perencanaan terarah • Penganggaran akuntabel</p>
     </section>
     <section className="login-card" aria-labelledby="login-title" id="login" tabIndex={-1}>
-      <div className="login-heading"><h2 id="login-title">Selamat Datang Kembali</h2><p>Masukkan NIP / Email Institusi dan kata sandi Anda untuk mengakses modul usulan anggaran.</p></div>
+      <div className="login-heading"><h2 id="login-title">Selamat Datang Kembali</h2><p>Masukkan {apiBaseUrl ? 'email akun terdaftar' : 'NIP / Email Institusi'} dan kata sandi Anda untuk mengakses modul usulan anggaran.</p></div>
       <div className="active-period"><span className="period-icon"><Icon name="calendar" /></span><div><span className="period-label">Periode Perencanaan</span><strong>Tahun Anggaran 2027 (Pagu Indikatif)</strong></div><span className="phase-badge">FASE USULAN</span></div>
       <LoginForm onOpenInfo={openInfo} onSuccess={onLogin} />
       <div className="helpdesk"><Icon name="info" /><div><strong>Kendala Akses atau Reset Password?</strong><p>Hubungi Unit Pelaksana Teknis TIK POLINDRA atau administrator unit kerja Anda.</p></div></div>

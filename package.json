@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test src/features/governance/workflow.test.js",
+    "test": "node --test src/features/governance/workflow.test.js src/services/api.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -1,0 +1,26 @@
+.pagu-page { container-type: inline-size; container-name: pagu; }
+.pagu-body { display: grid; gap: 24px; }
+.pagu-filters { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) auto; gap: 16px; align-items: end; }
+.pagu-filters label { display: grid; gap: 8px; min-width: 0; color: var(--color-text-secondary); font-size: 12px; font-weight: 500; }
+.pagu-filters select { width: 100%; min-width: 0; min-height: 44px; padding: 10px 36px 10px 12px; font: inherit; color: var(--color-text-primary, #172b4d); background-color: white; border: 1px solid #dce3f3; border-radius: 8px; text-overflow: ellipsis; }
+.pagu-filters > button { min-height: 44px; }
+.pagu-summary { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; }
+.pagu-summary .work-metric { padding: 24px; gap: 16px; align-content: start; }
+.pagu-summary .work-metric > strong { font-size: 30px; }
+.pagu-summary .work-money { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.pagu-summary .work-money > span:first-child { font-size: 20px; }
+.pagu-summary .work-money > span:last-child { font-size: clamp(18px, 3cqi, 32px); letter-spacing: -.5px; max-width: 100%; overflow-x: auto; }
+.pagu-table { min-width: 0; border: 1px solid #edf0f7; border-radius: 10px; overflow: hidden; }
+.pagu-table th:last-child { text-align: right; }
+.pagu-table td:last-child { font-weight: 600; }
+@container pagu (max-width: 680px) {
+  .pagu-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pagu-filters > button { justify-self: start; }
+  .pagu-summary { grid-template-columns: minmax(0, 1fr); }
+  .pagu-summary .work-money > span:last-child { font-size: clamp(18px, 5cqi, 30px); }
+}
+@container pagu (max-width: 420px) {
+  .pagu-filters { grid-template-columns: minmax(0, 1fr); }
+  .pagu-filters > button { justify-self: stretch; }
+  .pagu-summary .work-metric { padding: 18px; }
+}
