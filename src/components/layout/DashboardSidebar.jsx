@@ -19,7 +19,6 @@ const masters = [
   { id: 'master', label: 'Master Hierarki Anggaran', icon: 'tree', roles: ['ADMIN','OPERATOR'] },
   { id: 'budget', label: 'Pagu & IKU', icon: 'pie' },
   { id: 'units', label: 'Unit Kerja & Jenis Belanja', icon: 'building', admin: true },
-  { id: 'users', label: 'Pengguna & Hak Akses', icon: 'users', admin: true },
   { id: 'audit', label: 'Audit Aktivitas', icon: 'shield', roles: ['ADMIN','SPI','KPA'] },
 ]
 

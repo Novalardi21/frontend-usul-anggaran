@@ -8,6 +8,26 @@ export function createPagusService(send) {
       if (!Array.isArray(data)) throw new Error('Format daftar pagu dari server tidak sesuai.')
       return data
     },
+    async options(signal) {
+      const [units, sources] = await Promise.all([
+        send('/unit-kerjas', { signal }), send('/master-pagus', { signal }),
+      ])
+      if (!Array.isArray(units) || !Array.isArray(sources)) throw new Error('Format referensi pagu dari server tidak sesuai.')
+      return { units, sources }
+    },
+    async save(values, record) {
+      const amount = String(values.nominal_pagu ?? '').trim()
+      if (!/^\d+$/.test(amount) || BigInt(amount) > 9223372036854775807n) throw new Error('Nominal harus berupa rupiah bulat tidak negatif dan sesuai batas penyimpanan.')
+      const body = { nominal_pagu: BigInt(amount).toString() }
+      if (record) body.expected_nominal_pagu = String(record.nominal_pagu)
+      else {
+        body.kode_unit_kerja = String(values.kode_unit_kerja || '')
+        body.jenis_pagu = String(values.jenis_pagu || '').trim()
+        if (!/^\d+$/.test(body.kode_unit_kerja) || BigInt(body.kode_unit_kerja) < 1n) throw new Error('Pilih unit kerja.')
+        if (!body.jenis_pagu || body.jenis_pagu.length > 255) throw new Error('Isi sumber dana, maksimal 255 karakter.')
+      }
+      return send(record ? `/pagus/${encodeURIComponent(record.id)}` : '/pagus', { method: record ? 'PATCH' : 'POST', body })
+    },
   }
 }
 
