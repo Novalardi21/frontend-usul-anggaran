@@ -5,7 +5,7 @@ import { accountProfile } from '../../services/session'
 
 export default function DashboardNavbar({ user, active, counts, year, onYearChange, search, onSearchChange, onNavigate, onNotifications, onProfile, onOpenMenu }) {
   const profile=accountProfile(user,getRoleProfile(user.role))
-  const showYear = user.isDemo || (!['reviews', 'proposals', 'corrections'].includes(active) && (!['OPERATOR', 'PIMPINAN', 'SAKIP', 'SPI', 'KPA'].includes(user.role) || active !== 'dashboard'))
+  const showYear = user.isDemo || !['dashboard', 'executive', 'reviews', 'proposals', 'corrections', 'audit', 'reports'].includes(active)
   return (
     <header className="dash-topbar">
       <button className="dash-icon-button mobile-menu-button" aria-label="Buka menu navigasi" onClick={onOpenMenu}><Icon name="menu" /></button>

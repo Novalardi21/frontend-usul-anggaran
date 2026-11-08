@@ -29,11 +29,18 @@ export function createPengajuansService(send) {
       return data
     },
     async options(signal) {
-      const [pagus, accounts, satuans] = await Promise.all([
-        send('/pagus/unit-kerja', { signal }), send('/akuns', { signal }), send('/master-satuans', { signal }),
-      ])
-      if (![pagus, accounts, satuans].every(Array.isArray)) throw new Error('Format referensi pengajuan tidak sesuai.')
-      return { pagus, accounts, satuans }
+      const endpoints = {
+        pagus: '/pagus/unit-kerja', accounts: '/akuns', satuans: '/master-satuans',
+        subcomponents: '/subkomponens', components: '/komponens', suboutputs: '/suboutputs',
+        outputs: '/outputs', activities: '/kegiatans', programs: '/programs', indicators: '/ikus',
+        spendingTypes: '/jenis-belanjas',
+      }
+      const entries = await Promise.all(Object.entries(endpoints).map(async ([key, path]) => {
+        const data = await send(path, { signal })
+        if (!Array.isArray(data)) throw new Error('Format referensi pengajuan tidak sesuai.')
+        return [key, data]
+      }))
+      return Object.fromEntries(entries)
     },
     async submit(body) { return send('/pengajuans', { method: 'POST', body }) },
     async resubmit(id, body) { return send(`/pengajuans/${encodeURIComponent(id)}/resubmit`, { method: 'PATCH', body }) },
@@ -83,22 +90,44 @@ export function revisionBudget(record, options, selectedSource) {
   return { legacy: false, source, originalSource, moved, available: matches.length === 1 && targets.length === 1 ? BigInt(targets[0].nominal_pagu) + (moved ? 0n : BigInt(record.total_nominal_pengajuan)) : null }
 }
 
-export function revisionItems(record, accounts) {
-  const keys = ['kode_akun', 'kode_sk', 'kode_so', 'kode_output', 'kode_kegiatan', 'kode_program']
-  return record.items.map(item => {
-    const matches = accounts.filter(account => keys.every(key => String(account[key]) === String(item[key])))
-    return { akun_id: matches.length === 1 ? String(matches[0].id) : '', kode_satuan: item.kode_satuan, volume: String(item.volume), nominal_satuan: String(item.nominal_satuan) }
-  })
+export const submissionCodeFields = [
+  ['kode_akun', 'Kode Akun', 'accounts', 'nama_akun'],
+  ['kode_sk', 'Kode SK', 'subcomponents', 'nama_subkomponen'],
+  ['kode_komponen', 'Kode Komponen', 'components', 'nama_komponen'],
+  ['kode_so', 'Kode SO', 'suboutputs', 'nama_suboutput'],
+  ['kode_output', 'Kode Output', 'outputs', 'nama_output'],
+  ['kode_kegiatan', 'Kode Kegiatan', 'activities', 'nama_kegiatan'],
+  ['kode_program', 'Kode Program', 'programs', 'nama_program'],
+  ['kode_iku', 'Kode IKU', 'indicators', 'nama_iku'],
+]
+const itemKeys = [...submissionCodeFields.map(([key]) => key), 'nama_item', 'target_iku', 'kode_jenis_belanja', 'kode_satuan', 'volume', 'nominal_satuan']
+
+export function submissionItemValues(item = {}) {
+  return Object.fromEntries(itemKeys.map(key => [key, String(item[key] ?? '').trim()]))
+}
+
+export function revisionItems(record) {
+  return record.items.map(submissionItemValues)
+}
+
+const sourceByActivity = new Map([['7731', 'BOPTN'], ['7732', 'PNBP'], ['7734', 'RM']])
+
+export function submissionFunding(items) {
+  const sources = new Set(items.map(item => sourceByActivity.get(String(item.kode_kegiatan ?? '').trim())))
+  if (sources.size > 1 && !sources.has(undefined)) return { source: '', error: 'Pisahkan pengajuan jika rincian memakai jenis pagu berbeda.' }
+  if (items.some(item => item.kode_kegiatan && !sourceByActivity.has(String(item.kode_kegiatan).trim()))) return { source: '', error: 'Kode kegiatan belum memiliki jenis pagu.' }
+  if (sources.has(undefined) || sources.size !== 1) return { source: '', error: '' }
+  return { source: [...sources][0], error: '' }
 }
 
 export function prepareSubmission(values, options, original = null) {
-  const nomor = values.nomor_pengajuan.trim()
-  if (!nomor || nomor.length > 255) throw new Error('Isi nomor pengajuan, maksimal 255 karakter.')
-  const balances = options.pagus.filter(record => record.jenis_pagu === values.jenis_pagu)
-  const correction = revisionBudget(original, options, values.jenis_pagu)
+  const funding = submissionFunding(values.items)
+  if (!funding.source) throw new Error(funding.error || 'Pilih kode kegiatan untuk setiap rincian.')
+  const source = original && original.pagu_id == null && !original.jenis_pagu ? '' : funding.source
+  const balances = options.pagus.filter(record => record.jenis_pagu === source)
+  const correction = revisionBudget(original, options, source)
   if (!original && balances.length !== 1) throw new Error('Pagu sumber dana tidak tersedia atau ganda. Muat ulang atau hubungi Admin.')
-  if (original && (values.nomor_pengajuan !== original.nomor_pengajuan || !canRepairSubmission(original, 'OPERATOR'))) throw new Error('Pengajuan tidak tersedia untuk perbaikan. Muat ulang.')
-  if (correction?.legacy && values.jenis_pagu) throw new Error('Sumber dana asal pengajuan lama harus dipastikan sebelum memindahkan pagu.')
+  if (original && !canRepairSubmission(original, 'OPERATOR')) throw new Error('Pengajuan tidak tersedia untuk perbaikan. Muat ulang.')
   if (!values.items.length) throw new Error('Tambahkan setidaknya satu rincian.')
   const total = submissionTotal(values.items)
   if (total === null || total <= 0n) throw new Error('Volume dan harga harus bilangan bulat positif dalam batas penyimpanan.')
@@ -107,10 +136,16 @@ export function prepareSubmission(values, options, original = null) {
   if (available === null) throw new Error('Pagu asal tidak tersedia atau ganda. Hubungi Admin.')
   if (total > available) throw new Error('Total pengajuan melebihi sisa pagu sumber dana yang dipilih.')
   const items = values.items.map(item => {
-    if (!options.accounts.some(account => String(account.id) === item.akun_id)) throw new Error('Pilih akun dari hierarki terdaftar untuk setiap rincian.')
-    if (!options.satuans.some(satuan => satuan.kode_satuan === item.kode_satuan)) throw new Error('Pilih satuan untuk setiap rincian.')
-    return { akun_id: item.akun_id, kode_satuan: item.kode_satuan, volume: String(item.volume), nominal_satuan: String(item.nominal_satuan) }
+    const fields = submissionItemValues(item)
+    for (const [key, label, source] of submissionCodeFields) {
+      if (!options[source].some(row => String(row[key]) === fields[key])) throw new Error(label + ' harus dipilih dari data master.')
+    }
+    if (!fields.nama_item || fields.nama_item.length > 255) throw new Error('Isi nama item, maksimal 255 karakter.')
+    if (!/^\d{1,3}(\.\d{1,2})?$/.test(fields.target_iku)) throw new Error('Isi target IKU dengan maksimal dua angka desimal.')
+    if (!options.spendingTypes.some(row => String(row.kode_jenis_belanja) === fields.kode_jenis_belanja)) throw new Error('Pilih jenis belanja yang terdaftar.')
+    if (!options.satuans.some(row => row.kode_satuan === fields.kode_satuan)) throw new Error('Pilih satuan yang terdaftar.')
+    return fields
   })
-  if (original) return { items, expected_updated_at: original.updatedAt, expected_total: String(original.total_nominal_pengajuan), ...(correction.legacy ? {} : { jenis_pagu: values.jenis_pagu }) }
-  return { nomor_pengajuan: nomor, jenis_pagu: values.jenis_pagu, items }
+  if (original) return { items, expected_updated_at: original.updatedAt, expected_total: String(original.total_nominal_pengajuan), ...(correction.legacy ? {} : { jenis_pagu: source }) }
+  return { jenis_pagu: source, items }
 }

@@ -165,7 +165,7 @@ test('master akun memakai endpoint backend untuk daftar, tambah, ubah dan hapus'
   await service.save({ kode_akun: ' 521211 ', nama_akun: ' Belanja Bahan ' })
   await service.save({ kode_akun: '521211', nama_akun: 'Belanja Baru' }, '521211')
   await service.remove('521211')
-  assert.deepEqual(calls.map(call => call.url), ['/api/master-akuns', '/api/master-akuns', '/api/master-akuns/521211', '/api/master-akuns/521211'])
+  assert.deepEqual(calls.map(call => call.url), ['/api/akuns', '/api/akuns', '/api/akuns/521211', '/api/akuns/521211'])
   assert.deepEqual(calls.map(call => call.options.method), [undefined, 'POST', 'PATCH', 'DELETE'])
   assert.deepEqual(JSON.parse(calls[1].options.body), { kode_akun: '521211', nama_akun: 'Belanja Bahan' })
   assert.deepEqual(JSON.parse(calls[2].options.body), { nama_akun: 'Belanja Baru' })
@@ -175,11 +175,11 @@ test('master akun memakai endpoint backend untuk daftar, tambah, ubah dan hapus'
 test('master akun menolak input invalid dan meneruskan konflik serta penolakan izin', async () => {
   let calls = 0
   const invalid = createMasterAkunsService(async () => { calls++; return {} })
-  for (const code of ['', '12345', 'ABCDEF']) await assert.rejects(invalid.save({ kode_akun: code, nama_akun: 'Belanja' }))
+  for (const code of ['', 'A'.repeat(256)]) await assert.rejects(invalid.save({ kode_akun: code, nama_akun: 'Belanja' }))
   await assert.rejects(invalid.save({ kode_akun: '521211', nama_akun: ' ' }), /wajib diisi/)
   assert.equal(calls, 0)
   await assert.rejects(invalid.list(), /Format daftar/)
-  for (const status of [403, 409]) {
+  for (const status of [400, 403]) {
     const service = createMasterAkunsService(async () => { throw Object.assign(new Error('Ditolak'), { status }) })
     await assert.rejects(service.save({ kode_akun: '521211', nama_akun: 'Belanja' }), error => error.status === status)
     await assert.rejects(service.remove('521211'), error => error.status === status)
@@ -272,6 +272,17 @@ test('pencarian pengajuan menggabungkan nomor, unit, pengaju, status dan tahap',
   assert.equal(selectPengajuans(records, { status: 'approved' }).length, 0)
 })
 
+const itemCodes = {
+  kode_akun: '521211', kode_sk: 'A', kode_komponen: '004', kode_so: '001', kode_output: 'BEI',
+  kode_kegiatan: '7732', kode_program: 'DK', kode_iku: 'IKU 1', target_iku: '82',
+  kode_jenis_belanja: '2', nama_item: 'Belanja bahan',
+}
+const itemOptions = {
+  accounts: [itemCodes], subcomponents: [itemCodes], components: [itemCodes],
+  suboutputs: [itemCodes], outputs: [itemCodes], activities: ['7731', '7732', '7734'].map(kode_kegiatan => ({ kode_kegiatan })),
+  programs: [itemCodes], indicators: [itemCodes], spendingTypes: [itemCodes], satuans: [{ kode_satuan: 'PKT' }],
+}
+
 test('form pengajuan memuat pagu unit, hierarki dan satuan lalu mengirim POST cookie', async () => {
   const calls = []
   const service = createPengajuansService(createApiClient('/api', async (url, options) => {
@@ -279,26 +290,26 @@ test('form pengajuan memuat pagu unit, hierarki dan satuan lalu mengirim POST co
     return { ok: true, json: async () => options.method ? { pengajuan_id: 12, total_nominal_diajukan: '80', sisa_pagu: '20' } : [] }
   }))
   await service.options()
-  const payload = { nomor_pengajuan: 'USL/1', jenis_pagu: 'PNBP', items: [{ akun_id: '1', kode_satuan: 'PKT', volume: '2', nominal_satuan: '40' }] }
+  const payload = { nomor_pengajuan: 'USL/1', jenis_pagu: 'PNBP', items: [{ ...itemCodes, kode_satuan: 'PKT', volume: '2', nominal_satuan: '40' }] }
   await service.submit(payload)
-  assert.deepEqual(calls.map(call => call.url), ['/api/pagus/unit-kerja', '/api/akuns', '/api/master-satuans', '/api/pengajuans'])
-  assert.deepEqual(JSON.parse(calls[3].options.body), payload)
-  assert.equal(calls[3].options.method, 'POST')
+  assert.deepEqual(calls.map(call => call.url), ['/api/pagus/unit-kerja', '/api/akuns', '/api/master-satuans', '/api/subkomponens', '/api/komponens', '/api/suboutputs', '/api/outputs', '/api/kegiatans', '/api/programs', '/api/ikus', '/api/jenis-belanjas', '/api/pengajuans'])
+  assert.deepEqual(JSON.parse(calls.at(-1).options.body), payload)
+  assert.equal(calls.at(-1).options.method, 'POST')
   assert.ok(calls.every(call => call.options.credentials === 'include'))
 })
 
 test('validasi pengajuan mengikuti saldo sumber dana dan menghitung total tanpa pembulatan', () => {
-  const options = { pagus: [{ jenis_pagu: 'PNBP', nominal_pagu: '100' }, { jenis_pagu: 'RM', nominal_pagu: '50' }], accounts: [{ id: 1 }], satuans: [{ kode_satuan: 'PKT' }] }
-  const values = { nomor_pengajuan: ' USL/1 ', jenis_pagu: 'PNBP', items: [{ akun_id: '1', kode_satuan: 'PKT', volume: '2', nominal_satuan: '50', key: 'ui-only' }] }
+  const options = { pagus: [{ jenis_pagu: 'PNBP', nominal_pagu: '100' }, { jenis_pagu: 'RM', nominal_pagu: '50' }], ...itemOptions }
+  const values = { nomor_pengajuan: ' USL/1 ', jenis_pagu: 'PNBP', items: [{ ...itemCodes, kode_satuan: 'PKT', volume: '2', nominal_satuan: '50', key: 'ui-only' }] }
   const payload = prepareSubmission(values, options)
-  assert.equal(payload.nomor_pengajuan, 'USL/1')
+  assert.equal(payload.nomor_pengajuan, undefined)
   assert.equal(payload.items[0].key, undefined)
   assert.equal(submissionTotal(values.items), 100n)
-  assert.throws(() => prepareSubmission({ ...values, jenis_pagu: 'RM' }, options), /melebihi sisa pagu/)
-  assert.throws(() => prepareSubmission({ ...values, jenis_pagu: 'BOPTN' }, options), /tidak tersedia/)
+  assert.throws(() => prepareSubmission({ ...values, items: [{ ...values.items[0], kode_kegiatan: '7734' }] }, options), /melebihi sisa pagu/)
+  assert.throws(() => prepareSubmission({ ...values, items: [{ ...values.items[0], kode_kegiatan: '7731' }] }, options), /tidak tersedia/)
   assert.equal(submissionTotal([{ volume: '2', nominal_satuan: '9007199254740993' }]), 18014398509481986n)
   for (const volume of ['', '0', '-1', '1.5', '2147483648']) assert.equal(submissionTotal([{ volume, nominal_satuan: '50' }]), null)
-  assert.throws(() => prepareSubmission({ ...values, items: [{ ...values.items[0], akun_id: '99' }] }, options), /hierarki terdaftar/)
+  assert.throws(() => prepareSubmission({ ...values, items: [{ ...values.items[0], kode_akun: '99' }] }, options), /Kode Akun/)
   assert.throws(() => prepareSubmission({ ...values, items: [{ ...values.items[0], kode_satuan: 'missing' }] }, options), /Pilih satuan/)
 })
 
@@ -378,15 +389,15 @@ test('antrean koreksi mengikuti status revision, posisi berkas dan catatan asli 
 })
 
 test('perbaikan memuat rincian lama dan memakai batas saldo ditambah nominal lama', () => {
-  const account = { id: 1, kode_akun: '521211', kode_sk: 'A', kode_so: '001', kode_output: 'BEI', kode_kegiatan: '7731', kode_program: 'DK' }
+  const account = itemCodes
   const record = { pengajuan_id: 12, status: 'revision', current_position: 'operator', nomor_pengajuan: 'USL/1', pagu_id: 11, jenis_pagu: 'PNBP', total_nominal_pengajuan: '80', updatedAt: '2026-10-29T01:00:00Z', items: [{ ...account, kode_satuan: 'PKT', volume: 1, nominal_satuan: '80' }] }
-  const options = { accounts: [account], satuans: [{ kode_satuan: 'PKT' }], pagus: [{ id: 11, jenis_pagu: 'PNBP', nominal_pagu: '20' }] }
+  const options = { ...itemOptions, pagus: [{ id: 11, jenis_pagu: 'PNBP', nominal_pagu: '20' }] }
   assert.equal(canRepairSubmission(record, 'OPERATOR'), true)
   assert.equal(canRepairSubmission(record, 'PIMPINAN'), false)
   assert.equal(canRepairSubmission({ ...record, current_position: 'pimpinan_unit' }, 'OPERATOR'), false)
   assert.equal(revisionBudget(record, options).available, 100n)
-  const restored = revisionItems(record, options.accounts)
-  assert.equal(restored[0].akun_id, '1')
+  const restored = revisionItems(record)
+  assert.equal(restored[0].kode_akun, '521211')
   assert.equal(restored[0].nominal_satuan, '80')
   const values = { nomor_pengajuan: 'USL/1', jenis_pagu: 'PNBP', items: [{ ...restored[0], nominal_satuan: '90' }] }
   const payload = prepareSubmission(values, options, record)
@@ -394,13 +405,13 @@ test('perbaikan memuat rincian lama dan memakai batas saldo ditambah nominal lam
   assert.equal(payload.expected_updated_at, record.updatedAt)
   assert.equal(payload.nomor_pengajuan, undefined)
   assert.throws(() => prepareSubmission({ ...values, items: [{ ...restored[0], nominal_satuan: '101' }] }, options, record), /melebihi sisa pagu/)
-  assert.equal(revisionItems(record, [account, { ...account, id: 2 }])[0].akun_id, '')
+  assert.equal(revisionItems({ items: [{ ...account, kode_iku: null }] })[0].kode_iku, '')
 })
 
 test('pengajuan lama tanpa sumber boleh diperbaiki dengan total tetap', () => {
   const record = { status: 'revision', current_position: 'operator', nomor_pengajuan: 'USL/1', total_nominal_pengajuan: '80', updatedAt: '2026-10-29T01:00:00Z' }
-  const options = { accounts: [{ id: 1 }], satuans: [{ kode_satuan: 'PKT' }], pagus: [] }
-  const values = { nomor_pengajuan: 'USL/1', jenis_pagu: '', items: [{ akun_id: '1', kode_satuan: 'PKT', volume: '2', nominal_satuan: '40' }] }
+  const options = { ...itemOptions, pagus: [] }
+  const values = { nomor_pengajuan: 'USL/1', jenis_pagu: '', items: [{ ...itemCodes, kode_satuan: 'PKT', volume: '2', nominal_satuan: '40' }] }
   assert.equal(revisionBudget(record, options).legacy, true)
   assert.equal(prepareSubmission(values, options, record).items[0].volume, '2')
   assert.throws(() => prepareSubmission({ ...values, items: [{ ...values.items[0], nominal_satuan: '39' }] }, options, record), /Total revisi harus tetap/)
@@ -420,13 +431,13 @@ test('kirim ulang memakai PATCH pengajuan yang sama dan cookie sesi', async () =
 
 test('pindah sumber pada revisi memakai saldo tujuan tanpa menambahkan nominal lama', () => {
   const record = { status: 'revision', current_position: 'operator', nomor_pengajuan: 'USL/1', pagu_id: 11, jenis_pagu: 'PNBP', total_nominal_pengajuan: '80', updatedAt: '2026-10-29T01:00:00Z' }
-  const options = { accounts: [{ id: 1 }], satuans: [{ kode_satuan: 'PKT' }], pagus: [{ id: 11, jenis_pagu: 'PNBP', nominal_pagu: '20' }, { id: 22, jenis_pagu: 'RM', nominal_pagu: '90' }] }
+  const options = { ...itemOptions, pagus: [{ id: 11, jenis_pagu: 'PNBP', nominal_pagu: '20' }, { id: 22, jenis_pagu: 'RM', nominal_pagu: '90' }] }
   const budget = revisionBudget(record, options, 'RM')
   assert.equal(budget.available, 90n)
   assert.equal(budget.originalSource, 'PNBP')
   assert.equal(budget.moved, true)
-  const values = { nomor_pengajuan: 'USL/1', jenis_pagu: 'RM', items: [{ akun_id: '1', kode_satuan: 'PKT', volume: '1', nominal_satuan: '90' }] }
+  const values = { nomor_pengajuan: 'USL/1', jenis_pagu: 'RM', items: [{ ...itemCodes, kode_kegiatan: '7734', kode_satuan: 'PKT', volume: '1', nominal_satuan: '90' }] }
   assert.equal(prepareSubmission(values, options, record).jenis_pagu, 'RM')
   assert.throws(() => prepareSubmission({ ...values, items: [{ ...values.items[0], nominal_satuan: '91' }] }, options, record), /melebihi sisa pagu/)
-  assert.throws(() => prepareSubmission(values, options, { ...record, pagu_id: null, jenis_pagu: null }), /Sumber dana asal/)
+  assert.throws(() => prepareSubmission(values, options, { ...record, pagu_id: null, jenis_pagu: null }), /Total revisi harus tetap/)
 })

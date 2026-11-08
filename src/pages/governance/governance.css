@@ -56,7 +56,18 @@
 .work-pill { display:inline-flex; align-items:center; gap:5px; border-radius:30px; padding:4px 9px; background:#e9edff; color:#263d8f; font-size:10px; }
 .work-pill.green { background:#ddf8ef; color:#0f9f78; }.work-pill.amber { background:#fff2d8; color:#b46604; }.work-pill.gray { background:#f1f5f9; color:#64748b; }
 .work-inactive { color:#94a3b8; text-decoration:line-through; }
-.work-form { display:grid; gap:10px; font-size:13px; }.work-form label { display:grid; gap:6px; }.work-form .work-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }.work-form p { line-height:1.6; }
+.work-form { display:grid; gap:10px; font-size:13px; }
+.work-form label { display:grid; gap:6px; }
+.work-form .work-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.work-form p { line-height:1.6; }
+.dash-modal .work-form, .dash-modal .work-form label { min-width:0; grid-template-columns:minmax(0,1fr); }
+.dash-modal .work-form :is(input:not([type=checkbox]):not([type=radio]), select, textarea) { width:100%; min-width:0; }
+.dash-modal .work-form .work-form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.dash-modal .work-form .modal-actions { flex-wrap:wrap; }
+.dash-modal .work-form p { overflow-wrap:anywhere; }
+@media(max-width:767px) {
+  .dash-modal .work-form .work-form-grid { grid-template-columns:minmax(0,1fr); }
+}
 .work-error { color:#b42336; font-size:13px; background:#fde8ea; padding:12px; border-radius:8px; }
 .work-timeline { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:20px 0; }.work-timeline > div { background:#f8fafc; border-radius:10px; padding:16px; font-size:12px; line-height:1.6; }.work-timeline .active { background:#e9edff; border:1px solid #b7c4ff; }.work-timeline strong,.work-timeline small { display:block; }.work-timeline small { margin-top:10px; color:#64748b; }
 .work-note { background:#fff8eb; padding:18px; border-radius:12px; line-height:1.7; font-size:13px; }.work-note blockquote { margin:12px 0 0; background:white; padding:14px; border-radius:8px; }

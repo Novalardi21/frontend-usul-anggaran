@@ -22,3 +22,9 @@ export function accountProfile(user, fallback) {
     title: null,
   }
 }
+
+const superadminSections = new Set(['masterAkuns', 'satuans', 'master', 'budget', 'units', 'users'])
+
+export function canAccessDashboardSection(section, role) {
+  return !superadminSections.has(section) || role === 'ADMIN'
+}

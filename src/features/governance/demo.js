@@ -36,9 +36,10 @@ export function allocationUsage(proposals, allocation) {
 export const REPORTS = [
   ['L01','Usul anggaran setiap unit',null], ['L02','Belum disetujui pimpinan unit',['ADMIN','PIMPINAN']], ['L03','Belum diverifikasi Tim SAKIP',['ADMIN','SAKIP']], ['L04','Belum diverifikasi SPI',['ADMIN','SPI']], ['L05','Belum divalidasi KPA',['ADMIN','KPA']], ['L06','Usul bahan praktikum setiap unit',['ADMIN','OPERATOR','PIMPINAN','KPA']], ['L07','Usul belanja aset setiap unit',['ADMIN','OPERATOR','PIMPINAN','KPA']], ['L08','Usul honor setiap unit',['ADMIN','OPERATOR','PIMPINAN','KPA']], ['L09','Usul perjalanan dinas setiap unit',['ADMIN','OPERATOR','PIMPINAN','KPA']], ['L10','Rencana penarikan anggaran setiap unit',['ADMIN','OPERATOR','PIMPINAN','KPA']], ['L11','Rekap subkomponen untuk setiap IKU',null],
 ]
-export function downloadCsv(name, headers, rows) {
+export function downloadCsv(name, headers, rows, { demo = true } = {}) {
   const escape = value => { const s = String(value ?? ''); return `"${(/^[=+@\-\t\r\n]/.test(s) ? "'"+s : s).replaceAll('"','""')}"` }
-  const content = [['DATA CONTOH — Bukan dokumen resmi POLINDRA'],headers,...rows].map(row=>row.map(escape).join(';')).join('\r\n')
+  const prefix = demo ? [['DATA CONTOH — Bukan dokumen resmi POLINDRA']] : []
+  const content = [...prefix,headers,...rows].map(row=>row.map(escape).join(';')).join('\r\n')
   const url = URL.createObjectURL(new Blob(['\uFEFF'+content],{type:'text/csv;charset=utf-8;'}))
-  const a = document.createElement('a'); a.href=url; a.download=`${name}-contoh.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000)
+  const a = document.createElement('a'); a.href=url; a.download=name+(demo?'-contoh':'')+'.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000)
 }
