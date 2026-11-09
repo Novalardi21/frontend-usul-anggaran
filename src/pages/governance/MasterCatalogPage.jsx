@@ -115,11 +115,12 @@ function CatalogDialog({ catalog, record, onClose, onSaved }) {
   </Modal>
 }
 
-function CatalogTable({ catalog, search }) {
+function CatalogTable({ catalog, search, canManage }) {
   const result = useLoad(loaders[catalog.path].rows)
   const [dialog, setDialog] = useState(null)
   const [notice, setNotice] = useState('')
   const columns = catalog.columns || catalog.fields
+  const canEdit = canManage && !catalog.reference
   const query = search.trim().toLowerCase()
   const rows = result.data?.filter(row => columns.some(column => String(row[column.key] ?? '').toLowerCase().includes(query)))
   function open(record) { setNotice(''); setDialog({ record }) }
@@ -129,16 +130,16 @@ function CatalogTable({ catalog, search }) {
       <h2>{catalog.label}</h2>
       <div className="work-actions">
         <Button secondary disabled={result.loading} onClick={result.reload}>Muat ulang</Button>
-        {!catalog.reference && <Button icon="plus" onClick={() => open(null)}>Tambah Data</Button>}
+        {canEdit && <Button icon="plus" onClick={() => open(null)}>Tambah Data</Button>}
       </div>
     </div>
     {catalog.reference && <p>Referensi ini ditambahkan melalui {catalog.managedIn}.</p>}
     {notice && <p className="work-notice" role="status">{notice}</p>}
     {result.loading ? <p role="status">Memuat data…</p> : result.error ? <p role="alert">{result.error}</p> :
-      rows.length ? <Table caption={catalog.label} headers={[...columns.map(column => column.label), ...(!catalog.reference ? ['Tindakan'] : [])]}>
+      rows.length ? <Table caption={catalog.label} headers={[...columns.map(column => column.label), ...(canEdit ? ['Tindakan'] : [])]}>
         {rows.map(row => <tr key={row[catalog.id || columns[0].key]}>
           {columns.map(column => <td key={column.key}>{row[column.key] ?? '—'}</td>)}
-          {!catalog.reference && <td><Button secondary icon="edit" onClick={() => open(row)}>Ubah</Button></td>}
+          {canEdit && <td><Button secondary icon="edit" onClick={() => open(row)}>Ubah</Button></td>}
         </tr>)}
       </Table> : <Empty>{result.data.length ? 'Tidak ada data yang sesuai pencarian.' : 'Belum ada data.'}</Empty>}
     {dialog && <CatalogDialog catalog={catalog} record={dialog.record} onClose={() => setDialog(null)}
@@ -146,22 +147,25 @@ function CatalogTable({ catalog, search }) {
   </section>
 }
 
-export default function MasterCatalogPage({ search }) {
+export default function MasterCatalogPage({ search, role }) {
+  const canManage = role === 'ADMIN'
+  const programPaths = ['programs', 'kegiatans', 'outputs', 'suboutputs', 'komponens', 'subkomponens']
+  const catalogs = canManage ? masterCatalogs : masterCatalogs.filter(item => programPaths.includes(item.path))
   const [selected, setSelected] = useState(masterCatalogs[0].path)
-  const catalog = masterCatalogs.find(item => item.path === selected)
+  const catalog = catalogs.find(item => item.path === selected) || catalogs[0]
 
   return <div className="governance-page">
     <section className="dash-card work-heading">
-      <div><span className="work-eyebrow">MASTER DATA</span><h1>Master Hierarki Anggaran</h1><p>Kelola hierarki dan referensi anggaran dari database.</p></div>
+      <div><span className="work-eyebrow">MASTER DATA</span><h1>Data Program</h1><p>{canManage ? 'Kelola data program dan referensi anggaran.' : 'Lihat data program, kegiatan, dan kode anggaran.'}</p></div>
       <div className="work-form">
         <label>Data Master
-          <select value={selected} onChange={event => setSelected(event.target.value)}>
-            <optgroup label="Data yang dapat dikelola">{masterCatalogs.filter(item => !item.reference).map(item => <option key={item.path} value={item.path}>{item.label}</option>)}</optgroup>
-            <optgroup label="Daftar referensi">{masterCatalogs.filter(item => item.reference).map(item => <option key={item.path} value={item.path}>{item.label}</option>)}</optgroup>
+          <select value={catalog.path} onChange={event => setSelected(event.target.value)}>
+            <optgroup label="Program dan data terkait">{catalogs.filter(item => !item.reference).map(item => <option key={item.path} value={item.path}>{item.label}</option>)}</optgroup>
+            {canManage && <optgroup label="Daftar referensi">{catalogs.filter(item => item.reference).map(item => <option key={item.path} value={item.path}>{item.label}</option>)}</optgroup>}
           </select>
         </label>
       </div>
     </section>
-    <CatalogTable key={selected} catalog={catalog} search={search} />
+    <CatalogTable key={catalog.path} catalog={catalog} search={search} canManage={canManage} />
   </div>
 }

@@ -24,6 +24,7 @@ import MasterPage from '../governance/MasterPage'
 import MasterCatalogPage from '../governance/MasterCatalogPage'
 import AllocationPage from '../governance/AllocationPage'
 import UsersPage from '../governance/UsersPage'
+import OperatorsPage from '../governance/OperatorsPage'
 import AuditPage from '../governance/AuditPage'
 import LiveAuditPage from '../governance/LiveAuditPage'
 import CorrectionsPage from '../governance/CorrectionsPage'
@@ -72,7 +73,7 @@ export default function DashboardPage({ user, onLogout }) {
   const counts = !user.isDemo ? liveUnitCounts : { reviews: current.filter(item => item.status === 'DALAM_PROSES').length, corrections: current.filter(item => item.status === 'KOREKSI').length }
   const isOperator = user.role === 'OPERATOR'
 
-  useEffect(() => { const titles={approval:'Persetujuan Kajur',sakip:'Verifikasi SAKIP',proposals:'Usulan Anggaran',reviews:'Antrean Pemeriksaan',corrections:'Antrean Koreksi',executive:'Dashboard Eksekutif KPA',form:'Formulir Usulan',reports:'Laporan L01–L11',master:'Master Anggaran',units:'Unit Kerja',satuans:'Master Satuan',masterAkuns:'Master Akun Anggaran',budget:user.isDemo?'Pagu & IKU':'Daftar Pagu',users:'Pengguna & Akses',audit:'Audit Aktivitas'}; document.title = `${titles[section] || 'Dashboard'} | SIPADU Anggaran POLINDRA`; return () => { document.title = 'Login | SIPADU Anggaran POLINDRA' } }, [section, user.isDemo])
+  useEffect(() => { const titles={approval:'Persetujuan Kajur',sakip:'Verifikasi SAKIP',proposals:'Usulan Anggaran',reviews:'Antrean Pemeriksaan',corrections:'Antrean Koreksi',executive:'Dashboard Eksekutif KPA',form:'Formulir Usulan',reports:'Laporan L01–L11',master:'Data Program',units:'Unit Kerja',satuans:'Master Satuan',masterAkuns:'Master Akun Anggaran',budget:user.isDemo?'Pagu & IKU':'Daftar Pagu',users:'Data Operator',audit:'Audit Aktivitas'}; document.title = `${titles[section] || 'Dashboard'} | SIPADU Anggaran POLINDRA`; return () => { document.title = 'Login | SIPADU Anggaran POLINDRA' } }, [section, user.isDemo])
   useEffect(() => {
     const onRouteChange = () => {
       if (['#/persetujuan-pimpinan', '#/verifikasi-sakip'].includes(window.location.hash.split('?')[0])) {
@@ -151,13 +152,12 @@ export default function DashboardPage({ user, onLogout }) {
     setToast(`${updates.length} usulan contoh ${decision==='return'?'dikembalikan satu tahap':user.role==='PIMPINAN'?'disetujui dan diteruskan ke SAKIP':'diverifikasi dan diteruskan ke SPI'}.`)
   }
   const adminDenied = !canAccessDashboardSection(section, user.role)
-  const executiveDenied=section==='executive'&&!['ADMIN','KPA'].includes(user.role)
   const auditDenied=section==='audit'&&!['ADMIN','SPI','KPA'].includes(user.role)
   const reviewRecords=current.map(p=>({...p,unitName:governance.units.find(u=>u.id===p.unitId)?.name||unitName(p.unitId||'TI'),sourceCeiling:governance.allocations.find(a=>a.unitId===(p.unitId||'TI')&&a.source===p.source&&a.year===year)?.amount||0}))
   const allAudit=[...governance.events,...proposals.flatMap(p=>(p.reviewHistory||[]).filter(e=>e.actor?.includes('(contoh)')).map((e,i)=>({id:`SEED-${p.id}-${i}`,iso:'2026-10-12T02:30:00.000Z',time:e.time,actor:e.actor,role:e.stage,module:'Pemeriksaan',action:e.action,target:p.id,note:e.note}))) ]
   let modulePage=null
   const roleRouteDenied=(section==='approval'&&user.role!=='PIMPINAN')||(section==='sakip'&&user.role!=='SAKIP')
-  if(adminDenied||executiveDenied||auditDenied||roleRouteDenied)modulePage=<Notice>Akses halaman ini tidak tersedia untuk peran Anda. Gunakan menu sesuai peran aktif.</Notice>
+  if(adminDenied||auditDenied||roleRouteDenied)modulePage=<Notice>Akses halaman ini tidak tersedia untuk peran Anda. Gunakan menu sesuai peran aktif.</Notice>
   else if(!user.isDemo && (section==='executive' || (section==='dashboard' && user.role==='ADMIN')))modulePage=<InstitutionDashboard key={section} role={user.role} executive={section==='executive'} search={search} onCounts={setLiveUnitCounts}/>
   else if(section==='dashboard'&&liveUnit)modulePage=<UnitDashboard user={user} search={search} onCounts={setLiveUnitCounts}/>
   else if(section==='dashboard'&&!user.isDemo&&['SAKIP','SPI','KPA'].includes(user.role))modulePage=<SubmissionsPage key="review-dashboard" search={search} role={user.role} queue onCounts={setLiveUnitCounts}/>
@@ -173,9 +173,10 @@ export default function DashboardPage({ user, onLogout }) {
   else if(section==='reports'&&!user.isDemo)modulePage=<LiveReportsPage role={user.role} search={search}/>
   else if(section==='reports')modulePage=<ReportsPage proposals={scopedProposals} units={governance.units} role={user.role} year={year} search={search} notify={setToast}/>
   else if(section==='executive')modulePage=<ExecutivePage proposals={proposals} allocations={governance.allocations} ikus={governance.ikus} role={user.role} year={year} onDecision={bulkDecision} onDetail={openReview} notify={setToast}/>
-  else if(section==='master'&&!user.isDemo)modulePage=<MasterCatalogPage search={search}/>
+  else if(section==='master'&&!user.isDemo)modulePage=<MasterCatalogPage search={search} role={user.role}/>
   else if(['master','units'].includes(section))modulePage=<MasterPage key={section} mode={section} subcomponentRecords={governance.subcomponents} role={user.role} units={governance.units} accounts={governance.accounts} onSave={governance.save} search={search} onAudit={()=>navigate('audit')}/>
   else if(section==='budget')modulePage=<AllocationPage allocations={governance.allocations} units={governance.units} ikus={governance.ikus} proposals={proposals} role={user.role} year={year} search={search} onSave={governance.save} onAudit={()=>navigate('audit')} notify={setToast}/>
+  else if(section==='users'&&!user.isDemo)modulePage=<OperatorsPage search={search}/>
   else if(section==='users')modulePage=<UsersPage users={governance.users} units={governance.units} role={user.role} onSave={governance.save} search={search} onAudit={()=>navigate('audit')}/>
   else if(section==='audit')modulePage=user.isDemo?<AuditPage events={allAudit} year={year} search={search}/>:<LiveAuditPage search={search}/>
   else if(section==='corrections')modulePage=<CorrectionsPage proposals={scopedProposals} allocations={governance.allocations} accounts={governance.accounts} ikus={governance.ikus} role={user.role} year={year} search={search} onUpdate={updateCorrection} onSaveForm={saveForm}/>
