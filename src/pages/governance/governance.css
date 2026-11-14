@@ -30,6 +30,7 @@
 .work-section-title { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
 .work-section-title small { color:#64748b; font-size:11px; }
 .work-filters { display:flex; flex-wrap:wrap; align-items:end; gap:12px; }
+.accounts-filter { max-width:280px; margin-bottom:20px; }
 .work-filters label { display:grid; gap:6px; flex:1 1 150px; font-size:11px; color:#64748b; }
 .governance-page input:not([type=checkbox]):not([type=file]), .governance-page select, .governance-page textarea, .work-form input:not([type=checkbox]), .work-form select, .work-form textarea { border:1px solid #dce3ee; border-radius:8px; padding:10px 12px; min-height:42px; max-width:100%; background:white; color:#172033; font-size:13px; font-variant-numeric:tabular-nums; }
 .work-table { width:100%; border-collapse:collapse; font-size:13px; min-width:680px; }
@@ -80,3 +81,26 @@
 @media(max-width:1100px){.work-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.work-heading{align-items:start;flex-direction:column}.work-heading>.work-actions{max-width:none}.work-tree-grid{grid-template-columns:230px minmax(0,1fr)}.work-two-column{grid-template-columns:1fr}.work-timeline{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:767px){.governance-page{gap:16px}.work-heading,.work-panel{padding:16px}.work-heading h1{font-size:21px}.work-stats,.work-stats.three{grid-template-columns:1fr}.work-metric>strong{font-size:26px}.work-tree-grid{grid-template-columns:1fr}.work-tree{grid-template-columns:1fr}.work-tree p{display:none}.work-editor-grid,.work-form .work-form-grid{grid-template-columns:1fr}.work-months{grid-template-columns:repeat(2,minmax(0,1fr))}.work-timeline{grid-template-columns:1fr}.work-edit-summary{position:static;flex-direction:column;align-items:stretch}.work-section-title{align-items:start;flex-direction:column}.work-actions .dash-button{font-size:12px}.work-table{min-width:700px}}
 @media print{.dash-sidebar,.dash-topbar,.dash-drawer,.work-actions,.work-filters,.work-tabs,.work-edit-summary,.dash-toast,.demo-tag,.work-table button{display:none!important}.dashboard-content{margin:0!important;padding:0!important}.dashboard-shell{display:block}.work-heading,.dash-card{box-shadow:none;break-inside:avoid}.work-table{min-width:0;font-size:9px}.table-scroll{overflow:visible}.governance-page:before{content:'DATA CONTOH — Bukan dokumen resmi POLINDRA';display:block;color:#b42336;font-size:12px}.work-two-column,.work-tree-grid{display:block}}
+
+.account-password-field { display: grid; gap: 6px; min-width: 0; }
+.account-password-control { position: relative; min-width: 0; }
+.dash-modal .work-form .account-password-control input { padding-inline-end: 48px; }
+.account-password-control > button { position: absolute; inset-inline-end: 4px; top: 50%; transform: translateY(-50%); }
+
+.detail-report-panel { display:grid; gap:18px; }
+.detail-report-heading { display:flex; align-items:center; gap:12px; }
+.detail-report-icon { display:grid; place-items:center; flex:0 0 42px; height:42px; border-radius:10px; color:var(--color-primary); background:#eef2ff; }
+.detail-report-icon svg { width:20px; height:20px; }
+.detail-report-heading p { margin:4px 0 0; color:#64748b; font-size:13px; line-height:1.5; }
+.detail-report-controls { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:16px 24px; padding:14px 16px; border:1px solid #e5ebf5; border-radius:10px; background:#f8fafc; }
+.detail-report-scope { display:grid; gap:6px; flex:1 1 240px; max-width:420px; min-width:0; }
+.detail-report-scope select { width:100%; }
+.detail-report-controls span { color:#64748b; font-size:12px; }
+.detail-report-scope strong { font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+.detail-report-export { display:grid; gap:6px; justify-items:end; }
+.detail-report-panel > .work-error { margin:0; }
+@media (max-width:600px) {
+  .detail-report-scope, .detail-report-export { flex:1 1 100%; max-width:none; }
+  .detail-report-export { justify-items:stretch; }
+  .detail-report-export button { justify-content:center; }
+}

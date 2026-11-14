@@ -19,7 +19,7 @@ const masters = [
   { id: 'master', label: 'Data Program', icon: 'tree' },
   { id: 'budget', label: 'Pagu & IKU', icon: 'pie' },
   { id: 'units', label: 'Unit Kerja & Jenis Belanja', icon: 'building' },
-  { id: 'users', label: 'Data Operator', icon: 'users', liveOnly: true },
+  { id: 'users', label: 'Data Akun', icon: 'users', liveOnly: true },
   { id: 'audit', label: 'Audit Aktivitas', icon: 'shield', roles: ['ADMIN','SPI','KPA'] },
 ]
 

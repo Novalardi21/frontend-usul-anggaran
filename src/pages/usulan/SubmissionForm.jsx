@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../features/governance/Workbench'
 import { pengajuansService, prepareSubmission, submissionTotal, canRepairSubmission, revisionBudget, revisionItems, submissionCodeFields, submissionItemValues, submissionFunding } from '../../services/pengajuans'
 import { formatPagu, paguAmount } from '../../services/pagus'
+import SubmissionReferences from './SubmissionReferences'
 import './submission-form.css'
 
 const blankItem = () => ({ key: crypto.randomUUID(), ...submissionItemValues() })
@@ -24,6 +25,7 @@ export default function SubmissionForm({ user, revisionId = null }) {
   const [attempt, setAttempt] = useState(0)
   const [items, setItems] = useState(() => [blankItem()])
   const [error, setError] = useState('')
+  const [referenceItem, setReferenceItem] = useState(null)
   const [review, setReview] = useState(null)
   const [saving, setSaving] = useState(false)
   const [result, setResult] = useState(null)
@@ -101,6 +103,10 @@ export default function SubmissionForm({ user, revisionId = null }) {
       {items.map((item, index) => {
         const amount = submissionTotal([item])
         return <section key={item.key} className="dash-card work-panel submission-create-item"><div className="work-actions"><h2>Rincian {index + 1}</h2><Button secondary disabled={locked || items.length === 1} onClick={() => setItems(previous => previous.filter(row => row.key !== item.key))}>Hapus Rincian</Button></div>
+          <div className="submission-reference-guide">
+            <p>Mulai dari jalur <strong>Program → Kegiatan → Output → SO → Komponen</strong>. Kegiatan menentukan jenis pagu. Pilih SK dan Akun sesuai item, lalu pilih IKU untuk mengisi target otomatis.</p>
+            <Button secondary disabled={locked} onClick={() => setReferenceItem(item.key)}>Lihat Referensi Kode</Button>
+          </div>
           <label>Nama Item *<input value={item.nama_item} maxLength={255} required disabled={locked} onChange={event => update(item.key, 'nama_item', event.target.value)} /></label>
           <div className="submission-item-fields submission-code-fields">
             {submissionCodeFields.map(([key, label, source, name]) => <ReferenceSelect key={key} field={key} label={label} name={name} rows={options[source]} value={item[key]} disabled={locked} onChange={value => update(item.key, key, value)} />)}
@@ -122,5 +128,10 @@ export default function SubmissionForm({ user, revisionId = null }) {
         <div className="work-actions">{review && <Button secondary disabled={saving} onClick={() => setReview(null)}>Kembali Mengubah</Button>}<button className="dash-button" type="submit" disabled={saving || !funding.source || over || legacyChanged || balance === null || total === null || total <= 0n || !options.accounts.length || !options.satuans.length}>{saving ? 'Mengirim…' : review ? original ? 'Ajukan Ulang ke Pimpinan Unit' : 'Kirim ke Pimpinan Unit' : 'Tinjau Pengajuan'}</button></div>
       </section>
     </form>}
+    {referenceItem && <SubmissionReferences options={options} onClose={() => setReferenceItem(null)} onPick={fields => {
+      setItems(previous => previous.map(item => item.key === referenceItem ? { ...item, ...fields } : item))
+      setError('')
+      setReferenceItem(null)
+    }} />}
   </div>
 }

@@ -6,10 +6,14 @@ import { formatPagu } from '../../services/pagus'
 import { submissionStatuses } from '../../services/pengajuans'
 import { buildBudgetReport, reportUnitName } from '../../services/budgetReports'
 
+import { budgetSummaryPrintHtml } from '../../services/budgetSummaryPrint'
+import { printBudgetHtml } from '../../services/detailedBudgetReport'
+import DetailedBudgetReport from './DetailedBudgetReport'
+
 const defaultFilters = { unit: '', source: '', status: '' }
 const needsItems = code => ['L06', 'L07', 'L08', 'L09', 'L11'].includes(code)
 
-export default function LiveReportsPage({ role, search }) {
+export default function LiveReportsPage({ role, unitName, search }) {
   const allowed = REPORTS.filter(([, , roles]) => !roles || roles.includes(role))
   const [code, setCode] = useState(() => {
     const wanted = new URLSearchParams(window.location.hash.split('?')[1]).get('kode')
@@ -41,6 +45,15 @@ export default function LiveReportsPage({ role, search }) {
   const report = submissions && buildBudgetReport(code, submissions, { ...filters, search })
   const name = allowed.find(([id]) => id === code)?.[1]
 
+  function printSummary() {
+    printBudgetHtml(budgetSummaryPrintHtml(report, {
+      title: code + ' - ' + name,
+      scope: units.get(filters.unit) || unitName || 'Semua unit dalam cakupan',
+      source: filters.source || 'Semua sumber dana',
+      status: submissionStatuses[filters.status] || 'Semua status',
+    }))
+  }
+
   return <div className="governance-page">
     <section className="dash-card work-heading">
       <div><span className="work-eyebrow">ARSIP & REKAPITULASI KEUANGAN</span><h1>Pusat Laporan Anggaran L01–L11</h1>
@@ -49,9 +62,10 @@ export default function LiveReportsPage({ role, search }) {
         <Button secondary onClick={() => setAttempt(value => value + 1)}>Muat ulang</Button>
         <Button secondary icon="download" disabled={!report?.rows.length}
           onClick={() => downloadCsv(code, report.headers, report.rows, { demo: false })}>Ekspor CSV</Button>
-        <Button disabled={!report?.rows.length} onClick={() => window.print()}>Cetak / Simpan PDF</Button>
+        <Button disabled={!report?.rows.length} onClick={printSummary}>Cetak Rekap PDF</Button>
       </div>
     </section>
+    <DetailedBudgetReport role={role} unitName={unitName} />
     <section className="dash-card work-panel">
       <Tabs label="Jenis laporan" items={allowed.map(([id, title]) => [id, id + ' · ' + title])} value={code}
         onChange={id => { setCode(id); window.history.replaceState(null, '', '#/laporan?kode=' + id) }} />
@@ -75,7 +89,7 @@ export default function LiveReportsPage({ role, search }) {
         <section className="dash-card">
           <div className="work-panel work-section-title"><h2>{code} · {name}</h2><span className="work-pill">{report.rows.length} baris</span></div>
           <Table caption={name} headers={report.headers}>{report.rows.map((row, i) => <tr key={i}>
-            {row.map((cell, j) => <td className={typeof cell === 'bigint' ? 'numeric' : undefined} key={j}>
+            {row.map((cell, j) => <td className={typeof cell === 'bigint' ? 'numeric' : undefined} style={code === 'L01' && j === 2 ? { whiteSpace: 'pre-line' } : undefined} key={j}>
               {typeof cell === 'bigint' ? formatPagu(cell) : cell}
             </td>)}
           </tr>)}</Table>

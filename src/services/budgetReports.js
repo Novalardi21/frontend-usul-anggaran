@@ -22,18 +22,19 @@ export function buildBudgetReport(code, submissions, { unit = '', source = '', s
   let headers, rows
   if (code === 'L01') {
     const statuses = Object.keys(submissionStatuses)
-    headers = ['Kode Unit', 'Unit Kerja', ...statuses.map(key => submissionStatuses[key] + ' (Rp)'), 'Total Usulan (Rp)']
+    headers = ['Kode Unit', 'Unit Kerja', 'Nomor Pengajuan', ...statuses.map(key => submissionStatuses[key] + ' (Rp)'), 'Total Usulan (Rp)']
     const units = new Map()
     for (const record of selected) {
       if (!matches([record.nomor_pengajuan, reportUnitName(record), record.jenis_pagu])) continue
       const key = record.kode_unit_kerja
-      if (!units.has(key)) units.set(key, [key, reportUnitName(record), ...statuses.map(() => 0n), 0n])
+      if (!units.has(key)) units.set(key, [record.unit_kerja?.kode_unit || key, reportUnitName(record), [], ...statuses.map(() => 0n), 0n])
       const row = units.get(key)
+      row[2].push(record.nomor_pengajuan)
       const index = statuses.indexOf(record.status)
-      if (index !== -1) row[index + 2] += amount(record)
+      if (index !== -1) row[index + 3] += amount(record)
       row[row.length - 1] += amount(record)
     }
-    rows = [...units.values()]
+    rows = [...units.values()].map(([code, name, numbers, ...amounts]) => [code, name, numbers.join('\n'), ...amounts])
   } else if (reviewStages[code]) {
     headers = ['Nomor Pengajuan', 'Unit Kerja', 'Sumber Dana', 'Status', 'Tahap', 'Nominal (Rp)']
     rows = selected.filter(row => row.current_position === reviewStages[code] && ['pending', 'revision'].includes(row.status)

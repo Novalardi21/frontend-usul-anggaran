@@ -31,7 +31,7 @@ test('pemulihan sesi dan logout mengikuti kontrak cookie backend', async () => {
   const calls = []
   const auth = createAuthService(async (path, options) => {
     calls.push({ path, options })
-    if (path === '/me') return { id: 2, email: 'unit@example.test', nama_operator: 'Operator', role: 'operator', kode_unit_kerja: 4, unit_kerja: { unit_kerja: 'Jurusan Mesin' } }
+    if (path === '/me') return { id: 2, email: 'unit@example.test', nama_operator: 'Operator', role: 'operator', kode_unit_kerja: 4, unit_kerja: { unit_kerja: 'Jurusan Mesin', kode_unit: 'E' } }
     return { msg: 'Berhasil keluar' }
   }, true)
   const user = await auth.getSession()
@@ -81,17 +81,17 @@ test('tambah dan ubah unit mengirim kontrak backend, lalu daftar memuat hasil te
     if (options.method === 'PATCH') records[0] = { ...records[0], ...body }
     return { ok: true, json: async () => options.method ? { msg: 'Berhasil' } : records.map(unit => ({ ...unit })) }
   }))
-  await service.save('  Jurusan Mesin  ')
+  await service.save('  Jurusan Mesin  ', ' e ')
   assert.equal(calls[0].options.method, 'POST')
   assert.equal(calls[0].url, '/api/unit-kerjas')
   assert.equal(calls[0].options.credentials, 'include')
-  assert.deepEqual(JSON.parse(calls[0].options.body), { unit_kerja: 'Jurusan Mesin' })
-  assert.deepEqual(await service.list(), [{ kode_unit_kerja: 7, unit_kerja: 'Jurusan Mesin' }])
-  await service.save('Jurusan Teknik Mesin', 7)
+  assert.deepEqual(JSON.parse(calls[0].options.body), { unit_kerja: 'Jurusan Mesin', kode_unit: 'E' })
+  assert.deepEqual(await service.list(), [{ kode_unit_kerja: 7, unit_kerja: 'Jurusan Mesin', kode_unit: 'E' }])
+  await service.save('Jurusan Teknik Mesin', 'E', 7)
   assert.equal(calls[2].options.method, 'PATCH')
   assert.equal(calls[2].url, '/api/unit-kerjas/7')
-  assert.deepEqual(JSON.parse(calls[2].options.body), { unit_kerja: 'Jurusan Teknik Mesin' })
-  assert.deepEqual(await service.list(), [{ kode_unit_kerja: 7, unit_kerja: 'Jurusan Teknik Mesin' }])
+  assert.deepEqual(JSON.parse(calls[2].options.body), { unit_kerja: 'Jurusan Teknik Mesin', kode_unit: 'E' })
+  assert.deepEqual(await service.list(), [{ kode_unit_kerja: 7, unit_kerja: 'Jurusan Teknik Mesin', kode_unit: 'E' }])
 })
 
 test('validasi nama unit dan penolakan izin server diteruskan ke formulir', async () => {
@@ -100,7 +100,7 @@ test('validasi nama unit dan penolakan izin server diteruskan ke formulir', asyn
   await assert.rejects(service.save('   '), /wajib diisi/)
   await assert.rejects(service.save('a'.repeat(256)), /maksimal 255/)
   assert.equal(sent, false)
-  await assert.rejects(service.save('Jurusan Mesin'), error => error.status === 403 && error.message === 'Khusus Superadmin.')
+  await assert.rejects(service.save('Jurusan Mesin', 'E'), error => error.status === 403 && error.message === 'Khusus Superadmin.')
 })
 
 test('hapus unit mengirim DELETE dan meneruskan penolakan unit terpakai', async () => {
@@ -197,8 +197,8 @@ test('daftar pagu memilih endpoint sesuai cakupan akun dan menolak respons inval
 
 test('filter pagu menggabungkan pencarian, unit, sumber dana dan mempertahankan nominal besar', () => {
   const records = [
-    { id: 1, kode_unit_kerja: 7, unit_kerja: { unit_kerja: 'Jurusan Mesin' }, jenis_pagu: 'PNBP', nominal_pagu: '9007199254740993' },
-    { id: 2, kode_unit_kerja: 7, unit_kerja: { unit_kerja: 'Jurusan Mesin' }, jenis_pagu: 'BOPTN', nominal_pagu: '1000' },
+    { id: 1, kode_unit_kerja: 7, unit_kerja: { unit_kerja: 'Jurusan Mesin', kode_unit: 'E' }, jenis_pagu: 'PNBP', nominal_pagu: '9007199254740993' },
+    { id: 2, kode_unit_kerja: 7, unit_kerja: { unit_kerja: 'Jurusan Mesin', kode_unit: 'E' }, jenis_pagu: 'BOPTN', nominal_pagu: '1000' },
     { id: 3, kode_unit_kerja: 8, unit_kerja: null, jenis_pagu: 'PNBP', nominal_pagu: '2000' },
   ]
   assert.deepEqual(selectPagus(records, { search: 'mesin', unit: '7', source: 'PNBP' }), [records[0]])
