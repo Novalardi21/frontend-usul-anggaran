@@ -66,7 +66,5 @@ export default function LoginForm({ onOpenInfo, onSuccess }) {
     </FormField>}
     <div className="form-options">{!live && <label className="remember-session"><input type="checkbox" name="remember_session" /><span>Ingat sesi di perangkat ini <span className="muted">(Maks. 8 jam)</span></span></label>}<button className="text-button" type="button" onClick={() => onOpenInfo('password')}>Lupa Kata Sandi?</button></div>
     <button className="primary-button" type="submit" disabled={loading}>{loading ? <><span className="spinner" />Memproses login…</> : <>Masuk ke Sistem Penganggaran<Icon name="arrow" /></>}</button>
-    <div className="login-divider"><span>atau opsi login</span></div>
-    <button className="sso-button" type="button" disabled={loading} onClick={() => onOpenInfo('sso')}><Icon name="fingerprint" />Masuk dengan Akun Kampus (SSO POLINDRA)</button>
   </form>
 }

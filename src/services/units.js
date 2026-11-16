@@ -7,13 +7,15 @@ export function createUnitsService(send) {
       if (!Array.isArray(data)) throw new Error('Format daftar unit kerja dari server tidak sesuai.')
       return data
     },
-    async save(name, id) {
+    async save(name, code, id) {
       const unitName = typeof name === 'string' ? name.trim() : ''
       if (!unitName) throw new Error('Nama unit kerja wajib diisi.')
       if (unitName.length > 255) throw new Error('Nama unit kerja maksimal 255 karakter.')
+      const letter = typeof code === 'string' ? code.trim().toUpperCase() : ''
+      if (!/^[A-Z]$/.test(letter)) throw new Error('Kode unit wajib berupa satu huruf A–Z.')
       const editing = id !== undefined && id !== null
       return send(editing ? `/unit-kerjas/${encodeURIComponent(id)}` : '/unit-kerjas', {
-        method: editing ? 'PATCH' : 'POST', body: { unit_kerja: unitName },
+        method: editing ? 'PATCH' : 'POST', body: { unit_kerja: unitName, kode_unit: letter },
       })
     },
     async remove(id) {

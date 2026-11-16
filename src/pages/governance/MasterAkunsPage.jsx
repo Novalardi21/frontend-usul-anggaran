@@ -30,9 +30,9 @@ function MasterAkunDialog({ record, deleting = false, onSaved, onClose }) {
   }
   return <Modal title={deleting ? 'Hapus Akun Anggaran' : record ? 'Ubah Akun Anggaran' : 'Tambah Akun Anggaran'} eyebrow="SIPADU · DATA BACKEND" busy={saving} onClose={onClose}>
     <form className="work-form" onSubmit={submit} aria-busy={saving} onChange={() => setError('')}>
-      {deleting ? <div className="work-notice warning"><p><strong>Peringatan: penghapusan permanen.</strong> Akun Anggaran <strong>{record.nama_akun}</strong> ({record.kode_akun}) akan dihapus dari database dan tidak dapat dipulihkan melalui aplikasi. Akun Anggaran yang masih dipakai hierarki akun atau rincian anggaran akan ditolak. Ketik nama akun anggaran persis untuk melanjutkan.</p></div> : <p>{record ? 'Kode akun anggaran tetap sama agar rincian anggaran yang menggunakannya tetap terhubung.' : 'Masukkan kode dan nama akun anggaran, misalnya kode 521211 dengan nama Belanja Bahan.'}</p>}
+      {deleting ? <div className="work-notice warning"><p><strong>Peringatan: penghapusan permanen.</strong> Akun Anggaran <strong>{record.nama_akun}</strong> ({record.kode_akun}) akan dihapus dari database dan tidak dapat dipulihkan melalui aplikasi. Rincian anggaran yang memakai akun ini juga dapat ikut terhapus. Ketik nama akun anggaran persis untuk melanjutkan.</p></div> : <p>{record ? 'Kode akun anggaran tetap sama agar rincian anggaran yang menggunakannya tetap terhubung.' : 'Masukkan kode dan nama akun anggaran, misalnya kode 521211 dengan nama Belanja Bahan.'}</p>}
       {deleting ? <label>Ketik Nama Akun Anggaran *<input value={confirmation} onChange={event => setConfirmation(event.target.value)} required maxLength={255} disabled={saving}/></label> : <>
-      <label>Kode Akun Anggaran *<input name="kode_akun" defaultValue={record?.kode_akun || ''} required maxLength={record ? 255 : 6} inputMode="numeric" readOnly={Boolean(record)} disabled={saving}/></label>
+      <label>Kode Akun Anggaran *<input name="kode_akun" defaultValue={record?.kode_akun || ''} required maxLength={255} readOnly={Boolean(record)} disabled={saving}/></label>
       <label>Nama Akun Anggaran *<input name="nama_akun" defaultValue={record?.nama_akun || ''} required maxLength={255} disabled={saving}/></label>
       </>}
       {error && <p className="work-error" role="alert">{error}</p>}

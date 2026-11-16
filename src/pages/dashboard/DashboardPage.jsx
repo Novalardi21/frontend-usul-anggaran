@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import Icon from '../../components/ui/Icon'
 import StatCard from '../../components/data-display/StatCard'
@@ -18,11 +18,15 @@ import { decideReview } from '../../features/approvals/reviewData'
 import useGovernance from '../../features/governance/useGovernance'
 import { ALL_PROPOSALS, unitName } from '../../features/governance/demo'
 import ReportsPage from '../governance/ReportsPage'
+import LiveReportsPage from '../governance/LiveReportsPage'
 import ExecutivePage from '../governance/ExecutivePage'
 import MasterPage from '../governance/MasterPage'
+import MasterCatalogPage from '../governance/MasterCatalogPage'
 import AllocationPage from '../governance/AllocationPage'
 import UsersPage from '../governance/UsersPage'
+import OperatorsPage from '../governance/OperatorsPage'
 import AuditPage from '../governance/AuditPage'
+import LiveAuditPage from '../governance/LiveAuditPage'
 import CorrectionsPage from '../governance/CorrectionsPage'
 import ProposalWorkspace from '../../features/governance/ProposalWorkspace'
 import { Notice, Button } from '../../features/governance/Workbench'
@@ -33,34 +37,43 @@ import UnitsPage from '../governance/UnitsPage'
 import SatuansPage from '../governance/SatuansPage'
 import MasterAkunsPage from '../governance/MasterAkunsPage'
 import PagusPage from '../governance/PagusPage'
-import { accountProfile } from '../../services/session'
+import SubmissionsPage from '../usulan/SubmissionsPage'
+import SubmissionForm from '../usulan/SubmissionForm'
+import UnitDashboard from './UnitDashboard'
+import InstitutionDashboard from './InstitutionDashboard'
+import { accountProfile, canAccessDashboardSection } from '../../services/session'
 
 const sectionPaths = { dashboard: '/dashboard', approval: '/persetujuan-pimpinan', sakip: '/verifikasi-sakip', executive: '/dashboard-eksekutif', proposals: '/usulan-anggaran', form: '/formulir-usulan', reviews: '/antrean-pemeriksaan', corrections: '/antrean-koreksi', reports: '/laporan', master: '/master-anggaran', units: '/unit-kerja', satuans: '/master-satuan', masterAkuns: '/master-akun-anggaran', budget: '/pagu-iku', users: '/pengguna', audit: '/audit-aktivitas' }
 const getSection = () => Object.keys(sectionPaths).find(key => `#${sectionPaths[key]}` === window.location.hash.split('?')[0]) || 'dashboard'
+const getRepairId = () => new URLSearchParams(window.location.hash.split('?')[1] || '').get('perbaiki')
 
 export default function DashboardPage({ user, onLogout }) {
   const [proposals, setProposals] = useState(ALL_PROPOSALS)
+  const [liveUnitCounts, setLiveUnitCounts] = useState({ reviews: 0, corrections: 0 })
   const governance = useGovernance(user.role)
   const [formId,setFormId] = useState(null)
   const [year, setYear] = useState('2027')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('ALL')
   const [section, setSection] = useState(getSection)
+  const [repairId, setRepairId] = useState(getRepairId)
+  const sectionRef = useRef(section)
   const [modal, setModal] = useState(null)
   const [toast, setToast] = useState('')
   const [sakipMemo,setSakipMemo] = useState('')
   const profile=accountProfile(user,getRoleProfile(user.role))
   const unitScoped = ['OPERATOR','PIMPINAN'].includes(user.role)
+  const liveUnit = !user.isDemo && unitScoped
   const scopedProposals = unitScoped ? proposals.filter(p => (p.unitId || 'TI') === 'TI') : proposals
   const current = year === '2027' ? scopedProposals : []
   const activeAllocations = governance.allocations.filter(a => a.year === year && (!unitScoped || a.unitId === 'TI'))
   const total = activeAllocations.reduce((sum,a) => sum+a.amount,0)
   const { validated, committed } = getBudgetSummary(current)
   const remaining = total - validated - committed
-  const counts = { reviews: current.filter(item => item.status === 'DALAM_PROSES').length, corrections: current.filter(item => item.status === 'KOREKSI').length }
+  const counts = !user.isDemo ? liveUnitCounts : { reviews: current.filter(item => item.status === 'DALAM_PROSES').length, corrections: current.filter(item => item.status === 'KOREKSI').length }
   const isOperator = user.role === 'OPERATOR'
 
-  useEffect(() => { const titles={approval:'Persetujuan Kajur',sakip:'Verifikasi SAKIP',proposals:'Usulan Anggaran',reviews:'Antrean Pemeriksaan',corrections:'Antrean Koreksi',executive:'Dashboard Eksekutif KPA',form:'Formulir Usulan',reports:'Laporan L01–L11',master:'Master Anggaran',units:'Unit Kerja',satuans:'Master Satuan',masterAkuns:'Master Akun Anggaran',budget:user.isDemo?'Pagu & IKU':'Daftar Pagu',users:'Pengguna & Akses',audit:'Audit Aktivitas'}; document.title = `${titles[section] || 'Dashboard'} | SIPADU Anggaran POLINDRA`; return () => { document.title = 'Login | SIPADU Anggaran POLINDRA' } }, [section, user.isDemo])
+  useEffect(() => { const titles={approval:'Persetujuan Kajur',sakip:'Verifikasi SAKIP',proposals:'Usulan Anggaran',reviews:'Antrean Pemeriksaan',corrections:'Antrean Koreksi',executive:'Dashboard Eksekutif KPA',form:'Formulir Usulan',reports:'Laporan L01–L11',master:'Data Program',units:'Unit Kerja',satuans:'Master Satuan',masterAkuns:'Master Akun Anggaran',budget:user.isDemo?'Pagu & IKU':'Daftar Pagu',users:'Data Akun',audit:'Audit Aktivitas'}; document.title = `${titles[section] || 'Dashboard'} | SIPADU Anggaran POLINDRA`; return () => { document.title = 'Login | SIPADU Anggaran POLINDRA' } }, [section, user.isDemo])
   useEffect(() => {
     const onRouteChange = () => {
       if (['#/persetujuan-pimpinan', '#/verifikasi-sakip'].includes(window.location.hash.split('?')[0])) {
@@ -69,6 +82,9 @@ export default function DashboardPage({ user, onLogout }) {
       }
       if (!Object.values(sectionPaths).some(path => window.location.hash.split('?')[0] === `#${path}`)) return
       const next = getSection()
+      setRepairId(getRepairId())
+      if (sectionRef.current === next) return
+      sectionRef.current = next
       setSection(next)
       setFilter(next === 'reviews' ? 'DALAM_PROSES' : next === 'corrections' ? 'KOREKSI' : 'ALL')
       setSearch('')
@@ -135,31 +151,39 @@ export default function DashboardPage({ user, onLogout }) {
     updates.forEach(p=>governance.log('Pemeriksaan',decision==='return'?'KEMBALIKAN':user.role==='PIMPINAN'?'SETUJUI':'VERIFIKASI',p.id,note||'Rincian usulan contoh telah ditinjau.',user.role,p.stage))
     setToast(`${updates.length} usulan contoh ${decision==='return'?'dikembalikan satu tahap':user.role==='PIMPINAN'?'disetujui dan diteruskan ke SAKIP':'diverifikasi dan diteruskan ke SPI'}.`)
   }
-  const adminOnly=(section==='users'||(section==='units'&&user.isDemo))&&user.role!=='ADMIN'
-  const masterDenied=section==='master'&&!['ADMIN','OPERATOR'].includes(user.role)
-  const executiveDenied=section==='executive'&&!['ADMIN','KPA'].includes(user.role)
+  const adminDenied = !canAccessDashboardSection(section, user.role)
   const auditDenied=section==='audit'&&!['ADMIN','SPI','KPA'].includes(user.role)
   const reviewRecords=current.map(p=>({...p,unitName:governance.units.find(u=>u.id===p.unitId)?.name||unitName(p.unitId||'TI'),sourceCeiling:governance.allocations.find(a=>a.unitId===(p.unitId||'TI')&&a.source===p.source&&a.year===year)?.amount||0}))
   const allAudit=[...governance.events,...proposals.flatMap(p=>(p.reviewHistory||[]).filter(e=>e.actor?.includes('(contoh)')).map((e,i)=>({id:`SEED-${p.id}-${i}`,iso:'2026-10-12T02:30:00.000Z',time:e.time,actor:e.actor,role:e.stage,module:'Pemeriksaan',action:e.action,target:p.id,note:e.note}))) ]
   let modulePage=null
   const roleRouteDenied=(section==='approval'&&user.role!=='PIMPINAN')||(section==='sakip'&&user.role!=='SAKIP')
-  if(adminOnly||masterDenied||executiveDenied||auditDenied||roleRouteDenied)modulePage=<Notice>Akses halaman ini tidak tersedia untuk peran Anda. Gunakan menu sesuai peran aktif.</Notice>
+  if(adminDenied||auditDenied||roleRouteDenied)modulePage=<Notice>Akses halaman ini tidak tersedia untuk peran Anda. Gunakan menu sesuai peran aktif.</Notice>
+  else if(!user.isDemo && (section==='executive' || (section==='dashboard' && user.role==='ADMIN')))modulePage=<InstitutionDashboard key={section} role={user.role} executive={section==='executive'} search={search} onCounts={setLiveUnitCounts}/>
+  else if(section==='dashboard'&&liveUnit)modulePage=<UnitDashboard user={user} search={search} onCounts={setLiveUnitCounts}/>
+  else if(section==='dashboard'&&!user.isDemo&&['SAKIP','SPI','KPA'].includes(user.role))modulePage=<SubmissionsPage key="review-dashboard" search={search} role={user.role} queue onCounts={setLiveUnitCounts}/>
   else if(section==='units'&&!user.isDemo)modulePage=<UnitsPage search={search} role={user.role}/>
   else if(section==='satuans')modulePage=user.isDemo?<Notice>Master satuan tersedia setelah terhubung ke backend.</Notice>:<SatuansPage search={search} role={user.role}/>
   else if(section==='masterAkuns')modulePage=user.isDemo?<Notice>Master akun anggaran tersedia setelah terhubung ke backend.</Notice>:<MasterAkunsPage search={search} role={user.role}/>
   else if(section==='budget'&&!user.isDemo)modulePage=<PagusPage search={search} role={user.role}/>
+  else if(section==='proposals'&&!user.isDemo)modulePage=<SubmissionsPage key="proposals" search={search} role={user.role} onCounts={setLiveUnitCounts}/>
+  else if(section==='reviews'&&!user.isDemo)modulePage=<SubmissionsPage key="reviews" search={search} role={user.role} queue onCounts={setLiveUnitCounts}/>
+  else if(section==='corrections'&&!user.isDemo)modulePage=<SubmissionsPage key="corrections" search={search} role={user.role} corrections onCounts={setLiveUnitCounts}/>
+  else if(section==='form'&&!user.isDemo)modulePage=<SubmissionForm key={repairId || 'new'} user={user} revisionId={repairId}/>
   else if(['dashboard','approval','sakip'].includes(section)&&['PIMPINAN','SAKIP'].includes(user.role))modulePage=<RoleDashboard key={`${user.role}-${year}`} role={user.role} proposals={proposals} allocations={governance.allocations} units={governance.units} ikus={governance.ikus} year={year} search={search} onDetail={openReview} onBatchDecision={roleBatchDecision} onCorrections={()=>navigate('corrections')} onReports={()=>{window.location.assign(`#/laporan?kode=${user.role==='PIMPINAN'?'L02':'L03'}`)}} onBudget={()=>{setModal(null);navigate('budget')}} memo={sakipMemo} onSaveMemo={value=>{setSakipMemo(value);governance.log('SAKIP','SIMPAN_MEMO','Memo telaah SAKIP',value||'Memo dikosongkan.');setToast('Memo SAKIP tersimpan dalam sesi contoh.')}}/>
+  else if(section==='reports'&&!user.isDemo)modulePage=<LiveReportsPage role={user.role} unitName={user.unitName} search={search}/>
   else if(section==='reports')modulePage=<ReportsPage proposals={scopedProposals} units={governance.units} role={user.role} year={year} search={search} notify={setToast}/>
   else if(section==='executive')modulePage=<ExecutivePage proposals={proposals} allocations={governance.allocations} ikus={governance.ikus} role={user.role} year={year} onDecision={bulkDecision} onDetail={openReview} notify={setToast}/>
+  else if(section==='master'&&!user.isDemo)modulePage=<MasterCatalogPage search={search} role={user.role}/>
   else if(['master','units'].includes(section))modulePage=<MasterPage key={section} mode={section} subcomponentRecords={governance.subcomponents} role={user.role} units={governance.units} accounts={governance.accounts} onSave={governance.save} search={search} onAudit={()=>navigate('audit')}/>
   else if(section==='budget')modulePage=<AllocationPage allocations={governance.allocations} units={governance.units} ikus={governance.ikus} proposals={proposals} role={user.role} year={year} search={search} onSave={governance.save} onAudit={()=>navigate('audit')} notify={setToast}/>
+  else if(section==='users'&&!user.isDemo)modulePage=<OperatorsPage search={search} userId={user.id}/>
   else if(section==='users')modulePage=<UsersPage users={governance.users} units={governance.units} role={user.role} onSave={governance.save} search={search} onAudit={()=>navigate('audit')}/>
-  else if(section==='audit')modulePage=<AuditPage events={allAudit} year={year} search={search}/>
+  else if(section==='audit')modulePage=user.isDemo?<AuditPage events={allAudit} year={year} search={search}/>:<LiveAuditPage search={search}/>
   else if(section==='corrections')modulePage=<CorrectionsPage proposals={scopedProposals} allocations={governance.allocations} accounts={governance.accounts} ikus={governance.ikus} role={user.role} year={year} search={search} onUpdate={updateCorrection} onSaveForm={saveForm}/>
   else if(section==='form')modulePage=year!=='2027'?<Notice>Formulir contoh tersedia pada TA 2027.</Notice>:<><div className="work-actions" style={{marginBottom:20}}><Button secondary onClick={()=>setFormId(null)}>Buat Usulan Baru</Button>{scopedProposals.filter(p=>['DRAF','KOREKSI'].includes(p.status)&&p.stage==='OPERATOR').map(p=><Button key={p.id} secondary onClick={()=>setFormId(p.id)}>Ubah {p.id}</Button>)}</div><ProposalWorkspace key={formId||'new'} proposal={proposals.find(p=>p.id===formId)} proposals={proposals} allocations={governance.allocations} accounts={governance.accounts} ikus={governance.ikus} role={user.role} onSave={saveForm} onCancel={()=>navigate('proposals')}/></>
 
-  return <DashboardLayout user={user} active={section} counts={counts} year={year} onYearChange={changeYear} search={search} onSearchChange={value => { setSearch(value) }} onNavigate={navigate} onLogout={onLogout} onNotifications={() => setModal({ type: 'notifications' })} onProfile={() => setModal({ type: 'profile' })}>
-    {!user.isDemo && <Notice>Login, unit kerja, master satuan, master akun anggaran, dan daftar pagu sudah menggunakan backend. Perhitungan dashboard, usulan, IKU, pemeriksaan, dan laporan masih berupa simulasi data contoh.</Notice>}{modulePage || (section === 'reviews' ? <ReviewQueuePage key={year} proposals={reviewRecords} year={year} onYearChange={changeYear} role={user.role} search={search} onSearchChange={setSearch} onDecision={handleReviewDecision} /> : section === 'proposals' ? <ProposalsPage key={year} proposals={current} year={year} onYearChange={changeYear} search={search} onSearchChange={setSearch} filter={filter} onFilter={setFilter} role={user.role} remaining={remaining} onCreate={() => {setFormId(null);navigate('form')}} onDetail={details} onEdit={edit} onExport={() => setToast('Hasil filter berhasil diekspor sebagai CSV data contoh.')} /> : <>
+  return <DashboardLayout user={user} active={section} counts={counts} year={year} onYearChange={changeYear} search={search} onSearchChange={value => { setSearch(value) }} onNavigate={navigate} onLogout={onLogout} onNotifications={() => !user.isDemo ? navigate('proposals') : setModal({ type: 'notifications' })} onProfile={() => setModal({ type: 'profile' })}>
+    {modulePage || (section === 'reviews' ? <ReviewQueuePage key={year} proposals={reviewRecords} year={year} onYearChange={changeYear} role={user.role} search={search} onSearchChange={setSearch} onDecision={handleReviewDecision} /> : section === 'proposals' ? <ProposalsPage key={year} proposals={current} year={year} onYearChange={changeYear} search={search} onSearchChange={setSearch} filter={filter} onFilter={setFilter} role={user.role} remaining={remaining} onCreate={() => {setFormId(null);navigate('form')}} onDetail={details} onEdit={edit} onExport={() => setToast('Hasil filter berhasil diekspor sebagai CSV data contoh.')} /> : <>
     <section className="dash-card welcome-card"><div className="welcome-copy"><div><h1>Selamat Datang, {profile.shortName}</h1><span className="active-year"><i />TA {year}</span></div><p>Pantauan Usulan Anggaran POLINDRA — Tahun Anggaran {year}</p><span className="demo-tag"><Icon name="info" />Mode demo · Semua angka adalah data contoh</span></div><div className="welcome-actions"><div className="welcome-selects"><label className="unit-select"><Icon name="building" /><select aria-label="Unit kerja akun"><option>{unitScoped ? DEMO_UNIT : 'Semua unit dalam cakupan'}</option></select></label><label className="welcome-year"><Icon name="calendar" /><select aria-label="Pilih tahun anggaran" value={year} onChange={event => changeYear(event.target.value)}><option value="2027">TA 2027</option><option value="2026">TA 2026</option><option value="2025">TA 2025</option></select></label></div>{isOperator && <button className="dash-button" disabled={year !== '2027'} onClick={() => {setFormId(null);navigate('form')}}><Icon name="plus" />Buat Usulan Baru</button>}</div></section>
     {year !== '2027' && <div className="year-empty-notice"><Icon name="info" />Data contoh TA {year} belum tersedia. Pilih TA 2027 untuk mencoba dashboard.</div>}
     <div className="stats-grid"><StatCard label={unitScoped ? 'Total Pagu Unit' : 'Total Pagu Lintas Unit'} value={total} icon="wallet" helper={`BOPTN & PNBP alokasi ${year}`} percent={total ? 100 : 0} caption="Pagu" /><StatCard label="Sisa Dapat Diajukan" value={remaining} icon="savings" tone="success" helper="Kapasitas aman pengajuan" percent={ratio(remaining)} caption="Tersisa" /><StatCard label="Usulan Berjalan" value={committed} icon="swap" tone="info" helper={`${counts.reviews} usulan mengikat pagu`} percent={ratio(committed)} caption="Berjalan" /><StatCard label="Usulan Tervalidasi" value={validated} icon="shield" helper={`${current.filter(item => item.status === 'TERVALIDASI').length} usulan tuntas KPA`} percent={ratio(validated)} caption="Final" /></div>

@@ -11,8 +11,8 @@
 .pagu-summary .work-money > span:first-child { font-size: 20px; }
 .pagu-summary .work-money > span:last-child { font-size: clamp(18px, 3cqi, 32px); letter-spacing: -.5px; max-width: 100%; overflow-x: auto; }
 .pagu-table { min-width: 0; border: 1px solid #edf0f7; border-radius: 10px; overflow: hidden; }
-.pagu-table th:last-child { text-align: right; }
-.pagu-table td:last-child { font-weight: 600; }
+.pagu-table th:nth-child(3) { text-align: right; }
+.pagu-table td:nth-child(3) { font-weight: 600; }
 @container pagu (max-width: 680px) {
   .pagu-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pagu-filters > button { justify-self: start; }
